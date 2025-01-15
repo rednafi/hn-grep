@@ -44,7 +44,7 @@ func parseFlags() (*cliFlags, error) {
 	maxStories := flag.Int("max-stories", 250, "Maximum number of stories to fetch")
 	keywords := flag.String("keywords", "", "Comma-separated list of keywords to filter stories")
 	domain := flag.String("domain", "", "Domain to filter stories by URL (optional)")
-	htmlFile := flag.String("html-file", "grep.html", "Output HTML file for matched stories")
+	htmlFile := flag.String("html-file", "index.html", "Output HTML file for matched stories")
 	delay := flag.Duration("delay", 100*time.Millisecond, "Delay between requests (e.g. 100ms)")
 
 	flag.Parse()

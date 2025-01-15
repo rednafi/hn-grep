@@ -49,7 +49,7 @@ jobs:
             git config user.name "GitHub Actions"
             git config user.email "actions@github.com"
             git add grep.html
-            git commit -m "Add grep.html artifact"
+            git commit -m "Add index.html artifact"
             git push
           fi
         env:
