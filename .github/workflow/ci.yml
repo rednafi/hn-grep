@@ -7,6 +7,8 @@ on:
   pull_request:
     branches:
       - main
+  schedule:
+    - cron: '0 8 * * *' # Runs daily at 9 AM CET (CET is UTC+1, so UTC 8)
 
 permissions:
   contents: write  # Grant write access to the repository
@@ -25,8 +27,7 @@ jobs:
           go-version: 1.23
 
       - name: Run tests
-        run:
-          go test -v ./...
+        run: go test -v ./...
 
       - name: Cache Go build
         uses: actions/cache@v3
