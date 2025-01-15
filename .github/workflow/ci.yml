@@ -24,6 +24,10 @@ jobs:
         with:
           go-version: 1.23
 
+      - name: Run tests
+        run:
+          go test -v ./...
+
       - name: Cache Go build
         uses: actions/cache@v3
         with:
@@ -43,12 +47,12 @@ jobs:
             --max-stories 250 \
             --domain "rednafi.com"
 
-      - name: Commit and push grep.html
+      - name: Commit and push index.html
         run: |
-          if [ -f grep.html ]; then
+          if [ -f index.html ]; then
             git config user.name "GitHub Actions"
             git config user.email "actions@github.com"
-            git add grep.html
+            git add index.html
             git commit -m "Add index.html artifact"
             git push
           fi
