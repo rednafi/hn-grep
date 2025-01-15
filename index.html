@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HN Grep</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #fff7e6;  
+        }
+        .text-material-orange {
+            color: #fb8c00;  
+        }
+        .text-material-blue {
+            color: #1e88e5;  
+        }
+        .story {
+            display: flex;
+            flex-direction: column;
+            align-items: center;  
+            text-align: center;
+        }
+        .card {
+            background-color: #ffffff;  
+            border-radius: 0.25rem;  
+            padding: 1rem;  
+            border: 1px solid rgba(0, 0, 0, 0.1);  
+        }
+    </style>
+</head>
+<body class="font-sans text-gray-900">
+    <div class="container mx-auto p-4 max-w-3xl">
+        
+        <header class="text-center mb-4">
+            <h1 class="text-3xl font-bold text-material-orange">HN Grep</h1>
+            <p class="italic text-gray-700 mt-2 text-base">
+                Match stories by keywords or domain in Hacker News' Top 250
+            </p>
+            <p class="italic text-gray-700 mt-2 text-base">
+                Keywords: "databases, db, go, sqlite, turso, pydantic, golang, website, blog, personal, python, website, blogging, blogger"
+            </p>
+            <p class="italic text-gray-700 mt-2 text-base">
+                Domain: "rednafi.com"
+            </p>
+        </header>
+
+        
+        <section class="grid grid-cols-1 gap-2">
+            
+            <div class="story card">
+                <h2 class="text-base font-medium text-material-orange mb-2 truncate">
+                    Show HN: Pyper – Concurrent Python Made Simple
+                </h2>
+                <p class="text-sm text-material-blue">
+                    <a href="https://github.com/pyper-dev/pyper" target="_blank" class="hover:underline">Origin</a> •
+                    <a href="https://news.ycombinator.com/item?id=42673273" target="_blank" class="hover:underline">Discussion</a>
+                </p>
+            </div>
+            
+            <div class="story card">
+                <h2 class="text-base font-medium text-material-orange mb-2 truncate">
+                    Show HN: WASM-powered codespaces for Python notebooks on GitHub
+                </h2>
+                <p class="text-sm text-material-blue">
+                    <a href="https://docs.marimo.io/guides/publishing/playground/#open-notebooks-hosted-on-github" target="_blank" class="hover:underline">Origin</a> •
+                    <a href="https://news.ycombinator.com/item?id=42700852" target="_blank" class="hover:underline">Discussion</a>
+                </p>
+            </div>
+            
+            <div class="story card">
+                <h2 class="text-base font-medium text-material-orange mb-2 truncate">
+                    Rewriting my website in plain HTML and CSS
+                </h2>
+                <p class="text-sm text-material-blue">
+                    <a href="https://www.vijayp.dev/blog/rewrite-plain-html/" target="_blank" class="hover:underline">Origin</a> •
+                    <a href="https://news.ycombinator.com/item?id=42705077" target="_blank" class="hover:underline">Discussion</a>
+                </p>
+            </div>
+            
+            <div class="story card">
+                <h2 class="text-base font-medium text-material-orange mb-2 truncate">
+                    Ask HN: Is maintaining a personal blog still worth it?
+                </h2>
+                <p class="text-sm text-material-blue">
+                    <a href="" target="_blank" class="hover:underline">Origin</a> •
+                    <a href="https://news.ycombinator.com/item?id=42685534" target="_blank" class="hover:underline">Discussion</a>
+                </p>
+            </div>
+            
+            <div class="story card">
+                <h2 class="text-base font-medium text-material-orange mb-2 truncate">
+                    Link Blog in a Static Site
+                </h2>
+                <p class="text-sm text-material-blue">
+                    <a href="http://rednafi.com/misc/link_blog/" target="_blank" class="hover:underline">Origin</a> •
+                    <a href="https://news.ycombinator.com/item?id=42642625" target="_blank" class="hover:underline">Discussion</a>
+                </p>
+            </div>
+            
+            <div class="story card">
+                <h2 class="text-base font-medium text-material-orange mb-2 truncate">
+                    Track your devices via Apple FindMy network in Go/TinyGo
+                </h2>
+                <p class="text-sm text-material-blue">
+                    <a href="https://github.com/hybridgroup/go-haystack" target="_blank" class="hover:underline">Origin</a> •
+                    <a href="https://news.ycombinator.com/item?id=42665367" target="_blank" class="hover:underline">Discussion</a>
+                </p>
+            </div>
+            
+        </section>
+
+        
+        <footer class="text-center mt-6 text-xs text-gray-600">
+            Made with ❤️ by <a href="https://rednafi.com/about" target="_blank" class="text-material-orange hover:underline">Redowan</a>.
+            Source available on <a href="https://github.com/rednafi/hn-alert" target="_blank" class="text-material-orange hover:underline">GitHub</a>.
+        </footer>
+    </div>
+</body>
+</html>
