@@ -7,7 +7,7 @@ on:
   pull_request:
     branches:
       - main
-   schedule:
+  schedule:
     - cron: '0 8 * * *' # Runs daily at 9 AM CET (CET is UTC+1, so UTC 8)
 
   # Allows you to run this workflow manually from the Actions tab
@@ -56,23 +56,3 @@ jobs:
 
       - name: Build the Go binary
         run: go build -o main ./main.go
-
-      - name: Run the Go program
-        run: |
-          ./main \
-            --keywords 'databases,db,go,sqlite,turso,pydantic,golang,website,blog,personal,python,website,blogging,blogger' \
-            --max-stories 250 \
-            --delay 50ms \
-            --domain "rednafi.com"
-
-      - name: Commit and push index.html
-        run: |
-          if [ -f index.html ]; then
-            git config user.name "GitHub Actions"
-            git config user.email "actions@github.com"
-            git add index.html
-            git commit -m "Add index.html artifact" || echo "No changes to commit."
-            git push || echo "Nothing to push or push failed."
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
