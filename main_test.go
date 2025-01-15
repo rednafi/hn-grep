@@ -210,7 +210,7 @@ func TestMatches(t *testing.T) {
 func TestWriteHTML(t *testing.T) {
 	t.Parallel()
 	// 1. Arrange
-	tmpl, err := template.New("test").Parse(`<h1>Stories</h1>
+	tmpl, err := template.New("test").Parse(`<h1>Stories {{.MaxStories}}</h1>
 {{range .Stories}}<p>{{.Title}} - {{.URL}}</p>{{end}}`)
 	if err != nil {
 		t.Fatalf("Failed to parse inline template: %v", err)
@@ -223,6 +223,7 @@ func TestWriteHTML(t *testing.T) {
 			{Title: "Story 1", URL: "https://example.com/1", StoryURL: "https://news.ycombinator.com/item?id=1"},
 			{Title: "Story 2", URL: "https://example.com/2", StoryURL: "https://news.ycombinator.com/item?id=2"},
 		},
+		MaxStories: 2,
 	}
 
 	outFile := "test_write.html"
@@ -240,6 +241,10 @@ func TestWriteHTML(t *testing.T) {
 		t.Fatalf("Failed to read output file %q: %v", outFile, err)
 	}
 	htmlOutput := string(contents)
+
+	if !strings.Contains(htmlOutput, "Stories 2") {
+		t.Errorf("Output HTML does not contain expected title.\nOutput:\n%s", htmlOutput)
+	}
 
 	if !strings.Contains(htmlOutput, "Story 1") ||
 		!strings.Contains(htmlOutput, "Story 2") {

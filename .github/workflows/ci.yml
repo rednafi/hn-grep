@@ -26,6 +26,15 @@ jobs:
         with:
           go-version: 1.23
 
+      - name: Check linter conformity
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "The following files need to be formatted:" >&2
+            echo "$unformatted" >&2
+            exit 1
+          fi
+
       - name: Run tests
         run: go test -v ./...
 
@@ -45,7 +54,7 @@ jobs:
         run: |
           ./main \
             --keywords 'databases,db,go,sqlite,turso,pydantic,golang,website,blog,personal,python,website,blogging,blogger' \
-            --max-stories 250 \
+            --max-stories 100 \
             --domain "rednafi.com"
 
       - name: Commit and push index.html

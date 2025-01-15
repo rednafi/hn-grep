@@ -6,3 +6,6 @@ run:
 
 build:
 	go build main.go
+
+lint:
+	go fmt ./...

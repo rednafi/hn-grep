@@ -34,14 +34,15 @@ type cliFlags struct {
 
 // HTMLData represents the data passed to the HTML template.
 type HTMLData struct {
-	Keywords string
-	Domain   string
-	Stories  []story
+	Keywords   string
+	Domain     string
+	Stories    []story
+	MaxStories int
 }
 
 // parseFlags parses and validates command-line flags, returning a fully populated *cliFlags.
 func parseFlags() (*cliFlags, error) {
-	maxStories := flag.Int("max-stories", 250, "Maximum number of stories to fetch")
+	maxStories := flag.Int("max-stories", 100, "Maximum number of stories to fetch")
 	keywords := flag.String("keywords", "", "Comma-separated list of keywords to filter stories")
 	domain := flag.String("domain", "", "Domain to filter stories by URL (optional)")
 	htmlFile := flag.String("html-file", "index.html", "Output HTML file for matched stories")
@@ -225,9 +226,10 @@ func run(cfg *cliFlags, logger *log.Logger, client hackerNewsClient, tmpl *templ
 	logger.Printf("\nMatched %d stories.\n", len(matchedStories))
 
 	data := HTMLData{
-		Keywords: strings.Join(cfg.keywords, ", "),
-		Domain:   cfg.domain,
-		Stories:  matchedStories,
+		Keywords:   strings.Join(cfg.keywords, ", "),
+		Domain:     cfg.domain,
+		Stories:    matchedStories,
+		MaxStories: cfg.maxStories,
 	}
 
 	if err := writeHTML(cfg.htmlFile, tmpl, data); err != nil {
