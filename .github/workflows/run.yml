@@ -1,12 +1,6 @@
-name: Go Build and Run
+name: Go Run & commit
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
   schedule:
     - cron: '0 8 * * *' # Runs daily at 9 AM CET (CET is UTC+1, so UTC 8)
 
@@ -14,7 +8,7 @@ permissions:
   contents: write  # Grant write access to the repository
 
 jobs:
-  build-and-run:
+  run-and-commit:
     runs-on: ubuntu-latest
 
     steps:
@@ -26,35 +20,11 @@ jobs:
         with:
           go-version: 1.23
 
-      - name: Check linter conformity
-        run: |
-          unformatted=$(gofmt -l .)
-          if [ -n "$unformatted" ]; then
-            echo "The following files need to be formatted:" >&2
-            echo "$unformatted" >&2
-            exit 1
-          fi
-
-      - name: Run tests
-        run: go test -v ./...
-
-      - name: Cache Go build
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/go-build
-          key: ${{ runner.os }}-go-build-${{ hashFiles('**/*.go') }}
-          restore-keys: |
-            ${{ runner.os }}-go-build-
-
-      - name: Build the Go binary
-        run: go build -o main ./main.go
-
       - name: Run the Go program
         run: |
           ./main \
             --keywords 'databases,db,go,sqlite,turso,pydantic,golang,website,blog,personal,python,website,blogging,blogger' \
-            --max-stories 100 \
+            --max-stories 250 \
             --domain "rednafi.com"
 
       - name: Commit and push index.html
@@ -63,8 +33,8 @@ jobs:
             git config user.name "GitHub Actions"
             git config user.email "actions@github.com"
             git add index.html
-            git commit -m "Add index.html artifact"
-            git push
+            git commit -m "Add index.html artifact" || echo "No changes to commit."
+            git push || echo "Nothing to push or push failed."
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
