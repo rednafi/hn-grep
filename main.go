@@ -44,9 +44,9 @@ type HTMLData struct {
 func parseFlags() (*cliFlags, error) {
 	maxStories := flag.Int("max-stories", 100, "Maximum number of stories to fetch")
 	keywords := flag.String("keywords", "", "Comma-separated list of keywords to filter stories")
-	domain := flag.String("domain", "", "Domain to filter stories by URL (optional)")
+	domain := flag.String("domain", "", "Domain to filter stories by URL, (default '')")
 	htmlFile := flag.String("html-file", "index.html", "Output HTML file for matched stories")
-	delay := flag.Duration("delay", 100*time.Millisecond, "Delay between requests (e.g. 100ms)")
+	delay := flag.Duration("delay", 100*time.Millisecond, "Delay between requests")
 
 	flag.Parse()
 
