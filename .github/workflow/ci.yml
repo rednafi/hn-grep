@@ -1,0 +1,56 @@
+name: Go Build and Run
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write  # Grant write access to the repository
+
+jobs:
+  build-and-run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.23
+
+      - name: Cache Go build
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-build-${{ hashFiles('**/*.go') }}
+          restore-keys: |
+            ${{ runner.os }}-go-build-
+
+      - name: Build the Go binary
+        run: go build -o main ./main.go
+
+      - name: Run the Go program
+        run: |
+          ./main \
+            --keywords 'databases,db,go,sqlite,turso,pydantic,golang,website,blog,personal,python,website,blogging,blogger' \
+            --max-stories 250 \
+            --domain "rednafi.com"
+
+      - name: Commit and push grep.html
+        run: |
+          if [ -f grep.html ]; then
+            git config user.name "GitHub Actions"
+            git config user.email "actions@github.com"
+            git add grep.html
+            git commit -m "Add grep.html artifact"
+            git push
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

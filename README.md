@@ -1,2 +1,3 @@
-# hn-alert
-Track certain keywords on Hacker News and send alert
+# hn-grep
+
+Match stories by keywords or domain in Hacker News' Top 250

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HN Grep</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #fff7e6; /* Light peachy background */
+        }
+        .text-material-orange {
+            color: #fb8c00; /* Lighter Material orange */
+        }
+        .text-material-blue {
+            color: #1e88e5; /* Material Blue */
+        }
+        .story {
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* Center-align content */
+            text-align: center;
+        }
+        .card {
+            background-color: #ffffff; /* White for contrast */
+            border-radius: 0.25rem; /* Slightly rounded corners */
+            padding: 1rem; /* Balanced padding */
+            border: 1px solid rgba(0, 0, 0, 0.1); /* Subtle border */
+        }
+    </style>
+</head>
+<body class="font-sans text-gray-900">
+    <div class="container mx-auto p-4 max-w-3xl">
+        <!-- Header Section -->
+        <header class="text-center mb-4">
+            <h1 class="text-3xl font-bold text-material-orange">HN Grep</h1>
+            <p class="italic text-gray-700 mt-2 text-base">
+                Match stories by keywords or domain in Hacker News' Top 250
+            </p>
+            <p class="italic text-gray-700 mt-2 text-base">
+                Keywords: "{{.Keywords}}"
+            </p>
+            <p class="italic text-gray-700 mt-2 text-base">
+                Domain: "{{.Domain}}"
+            </p>
+        </header>
+
+        <!-- Stories Section -->
+        <section class="grid grid-cols-1 gap-2">
+            {{range .Stories}}
+            <div class="story card">
+                <h2 class="text-base font-medium text-material-orange mb-2 truncate">
+                    {{.Title}}
+                </h2>
+                <p class="text-sm text-material-blue">
+                    <a href="{{.URL}}" target="_blank" class="hover:underline">Origin</a> •
+                    <a href="{{.StoryURL}}" target="_blank" class="hover:underline">Discussion</a>
+                </p>
+            </div>
+            {{end}}
+        </section>
+
+        <!-- Footer Section -->
+        <footer class="text-center mt-6 text-xs text-gray-600">
+            Made with ❤️ by <a href="https://rednafi.com/about" target="_blank" class="text-material-orange hover:underline">Redowan</a>.
+            Source available on <a href="https://github.com/rednafi/hn-alert" target="_blank" class="text-material-orange hover:underline">GitHub</a>.
+        </footer>
+    </div>
+</body>
+</html>

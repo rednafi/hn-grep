@@ -4,21 +4,23 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"html/template"
 	"io"
 	"log"
 	"net/http"
 	"os"
-	"slices"
-	"sort"
+	"regexp"
 	"strings"
 	"time"
 )
 
-// story must have exported fields so the JSON package can unmarshal them.
+// story represents a Hacker News story.
+// Fields must be exported so the JSON package can unmarshal them.
 type story struct {
-	ID    int    `json:"id"`
-	Title string `json:"title"`
-	URL   string `json:"url"`
+	ID       int    `json:"id"`
+	Title    string `json:"title"`
+	URL      string `json:"url"`
+	StoryURL string // Not in JSON; we'll populate it manually.
 }
 
 // cliFlags holds all command-line flag values.
@@ -26,54 +28,69 @@ type cliFlags struct {
 	maxStories int
 	keywords   []string
 	domain     string
-	logFile    string
+	htmlFile   string
 	delay      time.Duration
 }
 
-// parseFlags is unexported because only `main` uses it.
+// HTMLData represents the data passed to the HTML template.
+type HTMLData struct {
+	Keywords string
+	Domain   string
+	Stories  []story
+}
+
+// parseFlags parses and validates command-line flags, returning a fully populated *cliFlags.
 func parseFlags() (*cliFlags, error) {
-	maxStories := flag.Int("max-stories", 500, "Maximum number of stories to fetch")
+	maxStories := flag.Int("max-stories", 250, "Maximum number of stories to fetch")
 	keywords := flag.String("keywords", "", "Comma-separated list of keywords to filter stories")
-	domain := flag.String("domain", "", "Domain to filter stories by URL")
-	logFile := flag.String("log-file", "hn-alert.log", "File to write log output")
-	delay := flag.Duration("delay", 100*time.Millisecond, "Delay between requests (e.g., 100ms)")
+	domain := flag.String("domain", "", "Domain to filter stories by URL (optional)")
+	htmlFile := flag.String("html-file", "grep.html", "Output HTML file for matched stories")
+	delay := flag.Duration("delay", 100*time.Millisecond, "Delay between requests (e.g. 100ms)")
+
 	flag.Parse()
 
 	if *maxStories <= 0 {
 		return nil, fmt.Errorf("max-stories must be a positive integer")
 	}
-	if *keywords == "" {
+	if strings.TrimSpace(*keywords) == "" {
 		return nil, fmt.Errorf("keywords must be provided")
 	}
 	if *delay < 100*time.Millisecond {
 		return nil, fmt.Errorf("delay must be greater than or equal to 100ms")
 	}
 
-	keywordsList := strings.Split(*keywords, ",")
+	rawKeywords := strings.Split(*keywords, ",")
+	cleanedKeywords := make([]string, 0, len(rawKeywords))
+	for _, kw := range rawKeywords {
+		kw = strings.TrimSpace(kw)
+		if kw != "" {
+			cleanedKeywords = append(cleanedKeywords, kw)
+		}
+	}
 
 	return &cliFlags{
 		maxStories: *maxStories,
-		keywords:   keywordsList,
+		keywords:   cleanedKeywords,
 		domain:     *domain,
-		logFile:    *logFile,
+		htmlFile:   *htmlFile,
 		delay:      *delay,
 	}, nil
 }
 
-// hackerNewsClient is an interface for fetching top stories and story details.
-// This makes run() more testable: we can provide a mock client in tests.
+// hackerNewsClient defines an interface for fetching top stories and individual story details.
 type hackerNewsClient interface {
 	getTopStories() ([]int, error)
 	getStory(id int) (*story, error)
 }
 
+// hnClient implements hackerNewsClient, fetching data from the live Hacker News API.
 type hnClient struct {
 	topStoriesURL   string
 	itemURLTemplate string
 	maxStories      int
 }
 
-// Compile-time check that hnClient implements hackerNewsClient
+// Compile-time check that hnClient implements hackerNewsClient.
 var _ hackerNewsClient = (*hnClient)(nil)
 
 // getTopStories fetches the IDs of the top stories from Hacker News.
@@ -96,7 +113,7 @@ func (c *hnClient) getTopStories() ([]int, error) {
 	return ids, nil
 }
 
-// getStory fetches the details of a single story by ID.
+// getStory fetches the details of a single story by ID from Hacker News.
 func (c *hnClient) getStory(id int) (*story, error) {
 	url := fmt.Sprintf(c.itemURLTemplate, id)
 	resp, err := http.Get(url)
@@ -114,160 +131,133 @@ func (c *hnClient) getStory(id int) (*story, error) {
 	if err := json.Unmarshal(body, &s); err != nil {
 		return nil, fmt.Errorf("error unmarshalling story %d: %w", id, err)
 	}
+
+	s.StoryURL = fmt.Sprintf("https://news.ycombinator.com/item?id=%d", id)
 	return &s, nil
 }
 
-// matches returns true if the story Title contains any of the keywords
-// (case-insensitive), or if a domain is given and the story's URL contains that domain.
+// compilePattern compiles a regex pattern that matches any of the provided keywords as full words.
+func compilePattern(keywords []string) string {
+	escapedKeywords := make([]string, len(keywords))
+	for i, kw := range keywords {
+		// Escape regex metacharacters and lowercase each keyword
+		escapedKeywords[i] = regexp.QuoteMeta(strings.ToLower(kw))
+	}
+
+	// Simulate word boundaries: (^|[^A-Za-z0-9_]) for the start and ($|[^A-Za-z0-9_]) for the end
+	// Example: (?i)(^|[^A-Za-z0-9_])(go|rust|python)($|[^A-Za-z0-9_])
+	return `(?i)(^|[^A-Za-z0-9_])(` + strings.Join(escapedKeywords, "|") + `)($|[^A-Za-z0-9_])`
+}
+
+// matches checks whether the given story's title or domain (URL) matches any
+// of the specified keywords or the provided domain filter.
 func matches(s *story, keywords []string, domain string) bool {
-	// Domain match is highest priority
-	if domain != "" && strings.Contains(s.URL, domain) {
+	// If domain is non-empty, check if the story's URL contains it (case-insensitive).
+	if domain != "" && strings.Contains(strings.ToLower(s.URL), strings.ToLower(domain)) {
 		return true
 	}
 
-	// Otherwise, check if title contains any of the keywords
-	return slices.ContainsFunc(keywords, func(keyword string) bool {
-		return strings.Contains(strings.ToLower(s.Title), strings.ToLower(keyword))
-	})
+	// Compile a single regex pattern for all keywords
+	pattern := compilePattern(keywords)
+	re := regexp.MustCompile(pattern)
+
+	// Check if the story's title matches any keyword
+	return re.MatchString(strings.ToLower(s.Title))
 }
 
-// logStory prints story info to stdout. If matched, it also logs to the file logger.
-func logStory(stdoutLogger, fileLogger *log.Logger, s *story, index int, matched bool) {
-	stdoutLogger.Printf("%d. Title: %s", index, s.Title)
-	stdoutLogger.Printf("   URL:   %s", s.URL)
-
-	if matched {
-		stdoutLogger.Println("   [MATCH: Yes]")
-		fileLogger.Printf("[MATCH] Title: %q | URL: %s", s.Title, s.URL)
-	} else {
-		stdoutLogger.Println("   [MATCH: No]")
-	}
-	stdoutLogger.Println(strings.Repeat("-", 80))
-}
-
-// sortLogFile reads the log file, filters for `[MATCH]` entries, sorts them by timestamp,
-func sortLogFile(file *os.File) error {
-	// Ensure file is readable and writable
-	stat, err := file.Stat()
+// writeHTML applies tmpl to data and writes the resulting HTML to htmlFilePath.
+func writeHTML(htmlFilePath string, tmpl *template.Template, data HTMLData) error {
+	file, err := os.OpenFile(htmlFilePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
-		return fmt.Errorf("failed to get file info: %w", err)
+		return fmt.Errorf("failed to open HTML file %q: %w", htmlFilePath, err)
 	}
+	defer file.Close()
 
-	// If the file is empty, there's nothing to sort
-	if stat.Size() == 0 {
-		return nil
+	if err := tmpl.Execute(file, data); err != nil {
+		return fmt.Errorf("failed to execute template: %w", err)
 	}
-
-	// Read the entire file
-	_, err = file.Seek(0, io.SeekStart)
-	if err != nil {
-		return fmt.Errorf("failed to seek to start of file: %w", err)
-	}
-
-	data, err := io.ReadAll(file)
-	if err != nil {
-		return fmt.Errorf("failed to read file contents: %w", err)
-	}
-
-	// Parse lines and filter for `[MATCH]` entries
-	var entries []string
-	for _, line := range strings.Split(string(data), "\n") {
-		line = strings.TrimSpace(line)
-		if line != "" && strings.Contains(line, "[MATCH]") {
-			entries = append(entries, line)
-		}
-	}
-
-	// Sort the log entries by their timestamps
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i] > entries[j] // Lexicographic sorting works for ISO-like dates
-	})
-
-	// Rewrite the file with sorted log entries
-	err = file.Truncate(0)
-	if err != nil {
-		return fmt.Errorf("failed to truncate file: %w", err)
-	}
-
-	_, err = file.Seek(0, io.SeekStart)
-	if err != nil {
-		return fmt.Errorf("failed to seek to start of file: %w", err)
-	}
-
-	_, err = file.WriteString(strings.Join(entries, "\n"))
-	if err != nil {
-		return fmt.Errorf("failed to write sorted data to file: %w", err)
-	}
-
 	return nil
 }
 
-// run orchestrates the main application logic using a Hacker News client.
-func run(
-	cfg *cliFlags,
-	stdoutLogger, fileLogger *log.Logger,
-	client hackerNewsClient,
-) error {
+// run orchestrates the high-level application logic: fetching top stories,
+// filtering them, logging matches, and writing the matched stories to an HTML file.
+func run(cfg *cliFlags, logger *log.Logger, client hackerNewsClient, tmpl *template.Template) error {
 	ids, err := client.getTopStories()
 	if err != nil {
 		return fmt.Errorf("failed to get top stories: %w", err)
 	}
 
-	stdoutLogger.Printf("Fetched %d stories. Displaying first %d...",
-		len(ids), cfg.maxStories)
-	stdoutLogger.Println(strings.Repeat("=", 80))
+	logger.Printf("Fetched %d stories. Displaying first %d...", len(ids), cfg.maxStories)
+	logger.Println(strings.Repeat("=", 80))
 
-	storyCount := 0
+	var matchedStories []story
+
 	for i, id := range ids {
 		if i >= cfg.maxStories {
 			break
 		}
 
-		st, err := client.getStory(id)
+		storyData, err := client.getStory(id)
 		if err != nil {
-			stdoutLogger.Printf("Failed to fetch story %d: %v", id, err)
+			logger.Printf("Failed to fetch story %d: %v", id, err)
+			continue
+		}
+		if storyData == nil {
+			logger.Printf("Story %d not found (nil).", id)
 			continue
 		}
 
-		isMatch := matches(st, cfg.keywords, cfg.domain)
-		logStory(stdoutLogger, fileLogger, st, i+1, isMatch)
-		storyCount++
+		// Log the story title to stdout
+		logger.Printf("[%d] Title: %s", i+1, storyData.Title)
 
-		// Respect the delay between requests
+		// Check if this story matches the keywords or domain
+		if matches(storyData, cfg.keywords, cfg.domain) {
+			logger.Println("   MATCHED!")
+			matchedStories = append(matchedStories, *storyData)
+		} else {
+			logger.Println("   NOT MATCHED.")
+		}
+
+		logger.Println(strings.Repeat("-", 80))
 		time.Sleep(cfg.delay)
 	}
 
-	stdoutLogger.Printf("\nProcessed %d stories.\n", storyCount)
+	logger.Printf("\nMatched %d stories.\n", len(matchedStories))
+
+	data := HTMLData{
+		Keywords: strings.Join(cfg.keywords, ", "),
+		Domain:   cfg.domain,
+		Stories:  matchedStories,
+	}
+
+	if err := writeHTML(cfg.htmlFile, tmpl, data); err != nil {
+		return fmt.Errorf("failed to write HTML file: %w", err)
+	}
+
 	return nil
 }
 
+// main is the entry point of the program, orchestrating flag parsing and the run sequence.
 func main() {
 	cfg, err := parseFlags()
 	if err != nil {
 		log.Fatalf("Failed to parse CLI flags: %v", err)
 	}
 
-	file, err := os.OpenFile(cfg.logFile, os.O_CREATE|os.O_RDWR, 0644)
+	logger := log.New(os.Stdout, "", log.LstdFlags)
+
+	tmpl, err := template.ParseFiles("template.html")
 	if err != nil {
-		log.Fatalf("Failed to open log file %q: %v", cfg.logFile, err)
+		log.Fatalf("Failed to load HTML template: %v", err)
 	}
-	defer file.Close()
 
-	stdoutLogger := log.New(os.Stdout, "", log.LstdFlags)
-	fileLogger := log.New(file, "", log.LstdFlags)
-
-	// Create the real Hacker News client
 	client := &hnClient{
 		topStoriesURL:   "https://hacker-news.firebaseio.com/v0/topstories.json",
 		itemURLTemplate: "https://hacker-news.firebaseio.com/v0/item/%d.json",
 		maxStories:      cfg.maxStories,
 	}
 
-	if err := run(cfg, stdoutLogger, fileLogger, client); err != nil {
+	if err := run(cfg, logger, client, tmpl); err != nil {
 		log.Fatalf("Application error: %v", err)
-	}
-
-	if err := sortLogFile(file); err != nil {
-		log.Fatalf("Failed to sort log file: %v", err)
 	}
 }
