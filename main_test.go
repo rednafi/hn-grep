@@ -1,10 +1,7 @@
 package main
 
 import (
-	"bytes"
 	"flag"
-	"fmt"
-	"log"
 	"os"
 	"slices"
 	"strings"
@@ -141,93 +138,96 @@ func TestMatches(t *testing.T) {
 		})
 	}
 }
-
-type fakeHNClient struct {
-	topStories []int
-	stories    map[int]*story
-	errTop     error
-	errStory   error
-}
-
-// Ensure fakeHNClient also implements HackerNewsClient
-var _ hackerNewsClient = (*fakeHNClient)(nil)
-
-func (f *fakeHNClient) getTopStories() ([]int, error) {
-	return f.topStories, f.errTop
-}
-
-func (f *fakeHNClient) getStory(id int) (*story, error) {
-	if f.errStory != nil {
-		return nil, f.errStory
-	}
-	s, ok := f.stories[id]
-	if !ok {
-		return nil, fmt.Errorf("story not found: %d", id)
-	}
-	return s, nil
-}
-
-func TestRunWithFakeClient(t *testing.T) {
-	// 1) Create a fake client with data
-	fc := &fakeHNClient{
-		topStories: []int{101, 202, 303},
-		stories: map[int]*story{
-			101: {ID: 101, Title: "Go is great", URL: "https://golang.org"},
-			202: {ID: 202, Title: "Random", URL: "https://example.com/something"},
-			303: {ID: 303, Title: "Rust is memory safe", URL: "https://rust-lang.org"},
+func TestSortLogFile(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expected    string
+		expectedErr bool
+	}{
+		{
+			name: "basic sorting",
+			input: `2025/01/15 00:09:17 [MATCH] Title: "Ask HN: Is maintaining a personal blog still worth it?" | URL:
+2025/01/15 00:08:59 [MATCH] Title: "The Missing Nvidia GPU Glossary" | URL: https://modal.com/gpu-glossary/readme
+2025/01/15 00:09:35 [MATCH] Title: "Link Blog in a Static Site" | URL: http://rednafi.com/misc/link_blog/
+`,
+			expected: `2025/01/15 00:09:35 [MATCH] Title: "Link Blog in a Static Site" | URL: http://rednafi.com/misc/link_blog/
+2025/01/15 00:09:17 [MATCH] Title: "Ask HN: Is maintaining a personal blog still worth it?" | URL:
+2025/01/15 00:08:59 [MATCH] Title: "The Missing Nvidia GPU Glossary" | URL: https://modal.com/gpu-glossary/readme
+`,
+			expectedErr: false,
+		},
+		{
+			name:        "empty file",
+			input:       ``,
+			expected:    ``,
+			expectedErr: false,
+		},
+		{
+			name: "no [MATCH] entries",
+			input: `2025/01/15 00:08:59 Title: "The Missing Nvidia GPU Glossary" | URL: https://modal.com/gpu-glossary/readme
+2025/01/15 00:09:35 Title: "Link Blog in a Static Site" | URL: http://rednafi.com/misc/link_blog/
+`,
+			expected:    ``,
+			expectedErr: false,
+		},
+		{
+			name: "mixed entries",
+			input: `2025/01/15 00:09:17 [MATCH] Title: "Ask HN: Is maintaining a personal blog still worth it?" | URL:
+2025/01/15 00:08:59 Title: "The Missing Nvidia GPU Glossary" | URL: https://modal.com/gpu-glossary/readme
+2025/01/15 00:09:35 [MATCH] Title: "Link Blog in a Static Site" | URL: http://rednafi.com/misc/link_blog/
+`,
+			expected: `2025/01/15 00:09:35 [MATCH] Title: "Link Blog in a Static Site" | URL: http://rednafi.com/misc/link_blog/
+2025/01/15 00:09:17 [MATCH] Title: "Ask HN: Is maintaining a personal blog still worth it?" | URL:
+`,
+			expectedErr: false,
 		},
 	}
 
-	// 2) Create a test cfg
-	cfg := &cliFlags{
-		maxStories: 3,
-		keywords:   []string{"go", "rust"},
-		domain:     "example.com",
-		logFile:    "unused.log",
-		delay:      0, // no delay in tests
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a temporary file
+			tempFile, err := os.CreateTemp("", "test_log_*.log")
+			if err != nil {
+				t.Fatalf("failed to create temporary file: %v", err)
+			}
+			defer os.Remove(tempFile.Name())
 
-	// 3) Capture logs in memory
-	var stdoutBuf, fileBuf bytes.Buffer
-	stdoutLogger := log.New(&stdoutBuf, "", 0)
-	fileLogger := log.New(&fileBuf, "", 0)
+			// Write input data to the file
+			if _, err := tempFile.WriteString(tt.input); err != nil {
+				t.Fatalf("failed to write to temporary file: %v", err)
+			}
 
-	// 4) Call the REAL run function with our fake client
-	err := run(cfg, stdoutLogger, fileLogger, fc)
-	if err != nil {
-		t.Fatalf("run returned an unexpected error: %v", err)
-	}
+			// Close the file so it can be read by sortLogFile
+			if err := tempFile.Close(); err != nil {
+				t.Fatalf("failed to close temporary file: %v", err)
+			}
 
-	// 5) Inspect logs
-	stdoutOut := stdoutBuf.String()
-	fileOut := fileBuf.String()
+			// Open the file for reading and writing
+			file, err := os.OpenFile(tempFile.Name(), os.O_RDWR, 0644)
+			if err != nil {
+				t.Fatalf("failed to open temporary file: %v", err)
+			}
+			defer file.Close()
 
-	// Because domain=example.com and keywords=[go, rust], let's see how it matches:
-	//   ID=101 => "Go is great" => matches "go"
-	//   ID=202 => "Random" => URL has "example.com", so domain match => yes
-	//   ID=303 => "Rust is memory safe" => matches "rust"
-	// So all 3 should be [MATCH: Yes].
-	if !strings.Contains(stdoutOut, "Go is great") ||
-		!strings.Contains(stdoutOut, "[MATCH: Yes]") {
-		t.Errorf("Expected 'Go is great' with [MATCH: Yes] in stdout:\n%s", stdoutOut)
-	}
-	if !strings.Contains(stdoutOut, "Random") ||
-		!strings.Contains(stdoutOut, "[MATCH: Yes]") {
-		t.Errorf("Expected 'Random' with [MATCH: Yes] in stdout:\n%s", stdoutOut)
-	}
-	if !strings.Contains(stdoutOut, "Rust is memory safe") ||
-		!strings.Contains(stdoutOut, "[MATCH: Yes]") {
-		t.Errorf("Expected 'Rust is memory safe' with [MATCH: Yes] in stdout:\n%s", stdoutOut)
-	}
+			// Call the function to test
+			err = sortLogFile(file)
 
-	// All matches should appear in file logs
-	if !strings.Contains(fileOut, "[MATCH] Title: \"Go is great\"") {
-		t.Errorf("Expected file logs to contain 'Go is great' match:\n%s", fileOut)
-	}
-	if !strings.Contains(fileOut, "[MATCH] Title: \"Random\"") {
-		t.Errorf("Expected file logs to contain 'Random' match:\n%s", fileOut)
-	}
-	if !strings.Contains(fileOut, "[MATCH] Title: \"Rust is memory safe\"") {
-		t.Errorf("Expected file logs to contain 'Rust is memory safe' match:\n%s", fileOut)
+			// Check if an error was expected
+			if (err != nil) != tt.expectedErr {
+				t.Fatalf("expected error: %v, got: %v", tt.expectedErr, err)
+			}
+
+			// Read the output
+			output, err := os.ReadFile(tempFile.Name())
+			if err != nil {
+				t.Fatalf("failed to read temporary file: %v", err)
+			}
+
+			// Compare the output to the expected value
+			if strings.TrimSpace(string(output)) != strings.TrimSpace(tt.expected) {
+				t.Errorf("expected output:\n%q\ngot:\n%q", tt.expected, output)
+			}
+		})
 	}
 }

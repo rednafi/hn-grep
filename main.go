@@ -145,7 +145,7 @@ func logStory(stdoutLogger, fileLogger *log.Logger, s *story, index int, matched
 	stdoutLogger.Println(strings.Repeat("-", 80))
 }
 
-// Sort the log messages in the log file by date and time.
+// sortLogFile reads the log file, filters for `[MATCH]` entries, sorts them by timestamp,
 func sortLogFile(file *os.File) error {
 	// Ensure file is readable and writable
 	stat, err := file.Stat()
@@ -194,7 +194,7 @@ func sortLogFile(file *os.File) error {
 		return fmt.Errorf("failed to seek to start of file: %w", err)
 	}
 
-	_, err = file.WriteString(strings.Join(entries, "\n") + "\n")
+	_, err = file.WriteString(strings.Join(entries, "\n"))
 	if err != nil {
 		return fmt.Errorf("failed to write sorted data to file: %w", err)
 	}
