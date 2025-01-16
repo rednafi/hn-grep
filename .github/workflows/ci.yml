@@ -1,4 +1,4 @@
-name: Build
+name: CI
 
 on:
   push:
@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  ci:
     runs-on: ubuntu-latest
 
     steps:
@@ -65,7 +65,6 @@ jobs:
             --delay 100ms \
             --domain "rednafi.com"
 
-      # The index.html file then gets served by cloudflare pages
       - name: Commit and push index.html
         run: |
           if [ -f index.html ]; then
@@ -77,3 +76,8 @@ jobs:
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy to Cloudflare Pages
+        if: success()
+        run: |
+          curl -X POST "https://api.cloudflare.com/client/v4/pages/webhooks/deploy_hooks/29c38610-4e2a-4c81-95f1-0a3edf2f3d2b"
