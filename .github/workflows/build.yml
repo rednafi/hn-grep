@@ -56,3 +56,24 @@ jobs:
 
       - name: Build the Go binary
         run: go build -o main ./main.go
+
+      - name: Run the Go program
+        run: |
+          ./main \
+            --keywords 'databases,db,go,sqlite,turso,pydantic,golang,website,blog,personal,python,website,blogging,blogger' \
+            --max-stories 100 \
+            --delay 50ms \
+            --domain "rednafi.com"
+
+      # The index.html file then gets served by cloudflare pages
+      - name: Commit and push index.html
+        run: |
+          if [ -f index.html ]; then
+            git config user.name "GitHub Actions"
+            git config user.email "actions@github.com"
+            git add index.html
+            git commit -m "Add index.html artifact" || echo "No changes to commit."
+            git push || echo "Nothing to push or push failed."
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
