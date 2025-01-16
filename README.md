@@ -13,11 +13,11 @@ tiny site that filters the top posts and just shows the ones that matter to me.
 Here's how it all comes together:
 
 - A small Go [CLI] runs every morning at 8 am (CET) using [GitHub Actions].
-- It fetches the top posts from Hacker News the HN API.
+- It fetches the top posts from the Hacker News API.
 - Relevant posts are filtered by keywords and domains I've set up.
 - The filtered results are used to build an `index.html` page.
 - This triggers a Cloudflare Pages build, which deploys the updated results.
 
-[here](https://hn-grep.rednafi.com)
-[cli](./main.go)
-[github actions](.github/workflows/ci.yml)
+[here]: https://hn-grep.rednafi.com
+[cli]: ./main.go
+[github actions]: .github/workflows/ci.yml
