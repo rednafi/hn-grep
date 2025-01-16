@@ -62,7 +62,7 @@ jobs:
           ./main \
             --keywords 'databases,db,go,sqlite,turso,pydantic,golang,website,blog,personal,python,website,blogging,blogger' \
             --max-stories 100 \
-            --delay 50ms \
+            --delay 100ms \
             --domain "rednafi.com"
 
       # The index.html file then gets served by cloudflare pages
